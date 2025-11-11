@@ -41,3 +41,15 @@ export class FreetarError extends Error {
     this.name = 'FreetarError';
   }
 }
+
+export interface Setlist {
+  id: string;
+  name: string;
+  created: string;
+  order?: number;
+  songs: SearchResult[];
+}
+
+export interface SetlistCollection {
+  [setlistId: string]: Setlist;
+}

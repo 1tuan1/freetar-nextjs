@@ -1,6 +1,6 @@
 "use client";
 
-import { SongDetail } from "@/types";
+import { SongDetail, SearchResult } from "@/types";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import ChordDiagram from "./ChordDiagram";
@@ -9,6 +9,7 @@ import {
 	exportChordProFile,
 	chordProToHtml,
 } from "@/lib/chordpro";
+import { getSetlistsArray, addSongToSetlist } from "@/lib/setlist";
 import {
 	FaStar,
 	FaArrowUpRightFromSquare,
@@ -21,6 +22,7 @@ import {
 	FaRegStar,
 	FaMinus,
 	FaPlus,
+	FaList,
 } from "react-icons/fa6";
 
 interface TabDisplayProps {
@@ -35,6 +37,7 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 	const [scrollTimeout, setScrollTimeout] = useState(500);
 	const [viewMode, setViewMode] = useState<"html" | "chordpro">("html");
 	const [fontSize, setFontSize] = useState(14); // Default 14px (text-sm)
+	const [setlists, setSetlists] = useState<ReturnType<typeof getSetlistsArray>>([]);
 	const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 	const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const pausedForUserInteraction = useRef(false);
@@ -44,9 +47,13 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 
 	useEffect(() => {
 		const favorites = JSON.parse(localStorage.getItem("favorites") || "{}");
-		const currentPath = window.location.pathname;
-		setIsFavorite(currentPath in favorites);
-	}, []);
+		setIsFavorite(tab.tab_url in favorites);
+		loadSetlists();
+	}, [tab.tab_url]);
+
+	const loadSetlists = () => {
+		setSetlists(getSetlistsArray());
+	};
 
 	useEffect(() => {
 		const handleUserInteraction = () => {
@@ -70,23 +77,43 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 
 	const toggleFavorite = () => {
 		const favorites = JSON.parse(localStorage.getItem("favorites") || "{}");
-		const currentPath = window.location.pathname;
 
-		if (currentPath in favorites) {
-			delete favorites[currentPath];
+		if (tab.tab_url in favorites) {
+			delete favorites[tab.tab_url];
 			setIsFavorite(false);
 		} else {
-			favorites[currentPath] = {
+			favorites[tab.tab_url] = {
 				artist_name: tab.artist_name,
 				song: tab.song_name,
 				type: tab.type,
 				rating: tab.rating,
-				tab_url: currentPath,
+				tab_url: tab.tab_url,
 			};
 			setIsFavorite(true);
 		}
 
 		localStorage.setItem("favorites", JSON.stringify(favorites));
+	};
+
+	const handleAddToSetlist = (setlistId: string) => {
+		const song: SearchResult = {
+			artist_name: tab.artist_name,
+			song_name: tab.song_name,
+			tab_url: tab.tab_url,
+			artist_url: '',
+			type: tab.type,
+			version: tab.version,
+			votes: 0,
+			rating: tab.rating,
+		};
+
+		try {
+			addSongToSetlist(setlistId, song);
+			alert('Song added to setlist!');
+			loadSetlists();
+		} catch (error) {
+			alert('Failed to add song to setlist: ' + (error as Error).message);
+		}
 	};
 
 	const pageScroll = () => {
@@ -240,6 +267,22 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 										<FaRegStar className="text-xl" />
 									)}
 								</button>
+								{setlists.length > 0 && (
+									<div className="dropdown dropdown-end no-print">
+										<label tabIndex={0} className="btn btn-ghost btn-sm" title="Add to setlist">
+											<FaList className="text-xl" />
+										</label>
+										<ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 max-h-64 overflow-y-auto">
+											{setlists.map((setlist) => (
+												<li key={setlist.id}>
+													<a onClick={() => handleAddToSetlist(setlist.id)}>
+														{setlist.name}
+													</a>
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
 							</h1>
 						</div>
 						<a

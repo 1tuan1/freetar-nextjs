@@ -3,7 +3,8 @@
 import { SearchResult } from '@/types';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaStar, FaRegStar, FaCaretDown, FaCaretUp, FaDownload } from 'react-icons/fa6';
+import { FaStar, FaRegStar, FaCaretDown, FaCaretUp, FaDownload, FaList } from 'react-icons/fa6';
+import { getSetlistsArray, addSongToSetlist } from '@/lib/setlist';
 
 interface SearchResultsProps {
   results: SearchResult[];
@@ -15,13 +16,19 @@ interface SearchResultsProps {
 export default function SearchResults({ results, currentPage, totalPages, searchTerm }: SearchResultsProps) {
   const [favorites, setFavorites] = useState<{ [key: string]: any }>({});
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [setlists, setSetlists] = useState<ReturnType<typeof getSetlistsArray>>([]);
 
   useEffect(() => {
     const storedFavorites = localStorage.getItem('favorites');
     if (storedFavorites) {
       setFavorites(JSON.parse(storedFavorites));
     }
+    loadSetlists();
   }, []);
+
+  const loadSetlists = () => {
+    setSetlists(getSetlistsArray());
+  };
 
   const toggleFavorite = (result: SearchResult) => {
     const newFavorites = { ...favorites };
@@ -115,6 +122,15 @@ export default function SearchResults({ results, currentPage, totalPages, search
     }
   };
 
+  const handleAddToSetlist = (setlistId: string, song: SearchResult) => {
+    try {
+      addSongToSetlist(setlistId, song);
+      alert('Song added to setlist!');
+    } catch (error) {
+      alert('Failed to add song to setlist: ' + (error as Error).message);
+    }
+  };
+
   const SortIcon = ({ column }: { column: string }) => {
     if (sortConfig?.key !== column) {
       return <FaCaretDown className="opacity-30" />;
@@ -161,6 +177,7 @@ export default function SearchResults({ results, currentPage, totalPages, search
                 </div>
               </th>
               <th>Favorite</th>
+              <th>Setlist</th>
             </tr>
           </thead>
           <tbody>
@@ -204,6 +221,26 @@ export default function SearchResults({ results, currentPage, totalPages, search
                       <FaRegStar className="text-lg" />
                     )}
                   </button>
+                </td>
+                <td>
+                  {setlists.length > 0 ? (
+                    <div className="dropdown dropdown-end">
+                      <label tabIndex={0} className="btn btn-ghost btn-sm">
+                        <FaList className="text-lg" />
+                      </label>
+                      <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 max-h-64 overflow-y-auto">
+                        {setlists.map((setlist) => (
+                          <li key={setlist.id}>
+                            <a onClick={() => handleAddToSetlist(setlist.id, result)}>
+                              {setlist.name}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <span className="text-xs opacity-50">No setlists</span>
+                  )}
                 </td>
               </tr>
             ))}
