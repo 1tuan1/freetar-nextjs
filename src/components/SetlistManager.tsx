@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { FaPencil, FaFloppyDisk, FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa6';
+import { FaPencil, FaFloppyDisk, FaTrash, FaArrowUp, FaArrowDown, FaPlay } from 'react-icons/fa6';
 import { Setlist } from '@/types';
 import {
   getSetlistsArray,
@@ -225,15 +225,28 @@ export default function SetlistManager() {
                       </>
                     ) : (
                       <>
-                        <button
-                          className="font-semibold text-lg hover:text-primary cursor-pointer flex items-center gap-2"
-                          onClick={() => toggleExpand(setlist.id)}
-                        >
-                          <span className="text-sm">
-                            {expandedSetlistId === setlist.id ? '▼' : '▶'}
-                          </span>
-                          {setlist.name}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => toggleExpand(setlist.id)}
+                          >
+                            <span className="text-sm">
+                              {expandedSetlistId === setlist.id ? '▼' : '▶'}
+                            </span>
+                          </button>
+                          {setlist.songs.length > 0 ? (
+                            <Link
+                              href={`/setlist?id=${setlist.id}`}
+                              className="font-semibold text-lg hover:text-primary"
+                            >
+                              {setlist.name}
+                            </Link>
+                          ) : (
+                            <span className="font-semibold text-lg opacity-50">
+                              {setlist.name}
+                            </span>
+                          )}
+                        </div>
                         <span className="badge badge-sm">{setlist.songs.length} songs</span>
                       </>
                     )}
@@ -241,6 +254,15 @@ export default function SetlistManager() {
 
                   {editingSetlistId !== setlist.id && (
                     <div className="flex gap-2">
+                      {setlist.songs.length > 0 && (
+                        <Link
+                          href={`/setlist?id=${setlist.id}`}
+                          className="btn btn-sm btn-primary"
+                          title="View Setlist"
+                        >
+                          <FaPlay />
+                        </Link>
+                      )}
                       <button
                         className="btn btn-sm btn-ghost"
                         onClick={() => handleMoveSetlistUp(setlist.id)}
@@ -308,12 +330,18 @@ export default function SetlistManager() {
                               <tr key={song.tab_url}>
                                 <td>{index + 1}</td>
                                 <td>
-                                  <Link
-                                    href={`/tab?path=${encodeURIComponent(song.tab_url)}`}
-                                    className="link link-hover"
-                                  >
-                                    {song.song_name}
-                                  </Link>
+                                  {song.tabData ? (
+                                    <Link
+                                      href={`/setlist?id=${setlist.id}&song=${index}`}
+                                      className="link link-hover"
+                                    >
+                                      {song.song_name}
+                                    </Link>
+                                  ) : (
+                                    <span className="opacity-50" title="No cached data">
+                                      {song.song_name}
+                                    </span>
+                                  )}
                                 </td>
                                 <td>{song.artist_name}</td>
                                 <td>

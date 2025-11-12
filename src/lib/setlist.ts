@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { Setlist, SetlistCollection, SearchResult } from '@/types';
+import { Setlist, SetlistCollection, SearchResult, SongDetail, SetlistSong } from '@/types';
 
 const SETLIST_STORAGE_KEY = 'freetar_setlists';
 
@@ -84,9 +84,13 @@ export function deleteSetlist(setlistId: string): void {
 }
 
 /**
- * Add a song to a setlist
+ * Add a song to a setlist (with optional full tab data)
  */
-export function addSongToSetlist(setlistId: string, song: SearchResult): void {
+export function addSongToSetlist(
+  setlistId: string,
+  song: SearchResult | SetlistSong,
+  tabData?: SongDetail
+): void {
   const setlists = loadSetlists();
   const setlist = setlists[setlistId];
 
@@ -97,7 +101,15 @@ export function addSongToSetlist(setlistId: string, song: SearchResult): void {
   // Check if song already exists in setlist
   const exists = setlist.songs.some(s => s.tab_url === song.tab_url);
   if (!exists) {
-    setlist.songs.push(song);
+    const setlistSong: SetlistSong = {
+      tab_url: song.tab_url,
+      artist_name: song.artist_name,
+      song_name: song.song_name || (song as any).song,
+      type: song.type,
+      rating: song.rating,
+      tabData: tabData || (song as SetlistSong).tabData,
+    };
+    setlist.songs.push(setlistSong);
     saveSetlists(setlists);
   }
 }
@@ -163,7 +175,7 @@ export async function exportSetlist(setlistId: string): Promise<void> {
     throw new Error('Failed to create songs folder in ZIP');
   }
 
-  // Add each song as a separate JSON file
+  // Add each song as a separate JSON file (including cached tabData)
   setlist.songs.forEach((song, index) => {
     const songFilename = `song-${index + 1}.json`;
     songsFolder.file(songFilename, JSON.stringify(song, null, 2));
@@ -204,7 +216,7 @@ export async function importSetlist(file: File): Promise<Setlist> {
     const metadata = JSON.parse(metadataContent);
 
     // Extract songs from individual files in songs folder
-    const songs: SearchResult[] = [];
+    const songs: SetlistSong[] = [];
     const songsFolder = zip.folder('songs');
 
     if (songsFolder) {

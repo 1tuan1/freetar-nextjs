@@ -108,7 +108,8 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 		};
 
 		try {
-			addSongToSetlist(setlistId, song);
+			// Pass the full tab data so it's cached in the setlist
+			addSongToSetlist(setlistId, song, tab);
 			alert('Song added to setlist!');
 			loadSetlists();
 		} catch (error) {
