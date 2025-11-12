@@ -29,6 +29,7 @@ npm run lint            # Run ESLint
 1. **Search Flow**: User → Search Page → `/api/search` → Ultimate Guitar → Cheerio Parser → Search Results Component
 2. **Tab Flow**: User → Tab Page → `/api/tab` → Ultimate Guitar → Tab Parser → Tab Display Component
 3. **Favorites**: Stored entirely in browser localStorage, no server-side persistence
+4. **Setlist Flow**: User → Setlist Viewer → Load from localStorage → Display cached tabs → No API requests needed
 
 ### Web Scraping Strategy
 
@@ -51,6 +52,16 @@ npm run lint            # Run ESLint
 - Managed independently in each component that displays favorites
 - Export/import uses JSON serialization
 
+**Setlists System**:
+- Storage key: `freetar_setlists` in localStorage
+- Storage format: `{ [setlistId]: Setlist }` where Setlist contains metadata and array of SetlistSong objects
+- Each SetlistSong includes:
+  - Metadata: `tab_url`, `artist_name`, `song_name`, `type`, `rating`
+  - Cached data: Full `SongDetail` object with tab content, chords, fingerings
+- Complete offline functionality - no API requests needed after initial song addition
+- Export/import as `.setlist` ZIP files containing metadata and individual song JSON files
+- Automatic backward compatibility migration adds `order` field to existing setlists
+
 **Transpose System**:
 - Uses 12-tone equal temperament: `['A'], ['A#', 'Bb'], ['B', 'Cb'], ...`
 - Transposes by finding note index and shifting modulo 12
@@ -72,16 +83,18 @@ npm run lint            # Run ESLint
 ### Component Architecture
 
 **Page Components** (`src/app/`):
-- `page.tsx`: Home page showing favorites from localStorage
+- `page.tsx`: Home page showing setlists and favorites from localStorage
 - `search/page.tsx`: Client component that fetches search results via `/api/search`
 - `tab/page.tsx`: Client component that fetches tab data via `/api/tab`
+- `setlist/page.tsx`: Setlist viewer with song navigation and keyboard shortcuts
 - `about/page.tsx`: Static about page
 
 **Reusable Components** (`src/components/`):
 - `Navbar.tsx`: Contains search form with client-side routing
-- `SearchResults.tsx`: Table with sorting, pagination, and favorite toggles
-- `TabDisplay.tsx`: Main tab viewer with transpose, autoscroll, chord visibility controls
+- `SearchResults.tsx`: Table with sorting, pagination, favorite toggles, and setlist dropdown
+- `TabDisplay.tsx`: Main tab viewer with transpose, autoscroll, chord visibility controls, and setlist dropdown
 - `ChordDiagram.tsx`: Renders chord fingering diagrams from applicature data
+- `SetlistManager.tsx`: Complete setlist CRUD interface with expand/collapse, reordering, export/import
 
 ### Type System
 
@@ -91,6 +104,9 @@ All types in `src/types/index.ts`:
 - `ChordVariant`: Map of fret numbers to string press patterns `{ [fret]: [0|1, 0|1, ...] }`
 - `SearchResponse`: Paginated search results
 - `FreetarError`: Custom error class for user-facing error messages
+- `SetlistSong`: Song entry in setlist with metadata and optional cached `SongDetail`
+- `Setlist`: Complete setlist with id, name, created date, order, and array of SetlistSong objects
+- `SetlistCollection`: Dictionary of setlists keyed by setlist ID
 
 ### Dark Mode Implementation
 
@@ -183,6 +199,70 @@ The app uses Tailwind CSS with DaisyUI component library:
 - Global styles and Tailwind directives in `src/app/globals.css`
 - DaisyUI themes configured for light/dark mode switching
 
+## Setlists Architecture
+
+**Key Design Decision**: Store complete tab data in setlists to enable offline viewing and eliminate API requests during performances.
+
+**Library** (`src/lib/setlist.ts`):
+- `loadSetlists()`: Loads setlists from localStorage with automatic migration for `order` field
+- `saveSetlists()`: Persists setlists to localStorage
+- `createSetlist()`: Creates new setlist with unique ID and timestamp-based order
+- `addSetlist()`: Adds newly created setlist to collection
+- `deleteSetlist()`: Removes setlist from collection
+- `renameSetlist()`: Updates setlist name
+- `addSongToSetlist()`: Adds song with optional full `SongDetail` cached data
+- `removeSongFromSetlist()`: Removes song by tab_url
+- `moveSongUp()` / `moveSongDown()`: Reorders songs within setlist
+- `moveSetlistUp()` / `moveSetlistDown()`: Reorders setlists by swapping order values
+- `exportSetlist()`: Creates ZIP file with metadata.json and individual song JSON files
+- `importSetlist()`: Parses ZIP file and creates new setlist with imported data
+- `getSetlistsArray()`: Returns sorted array of setlists by order field
+
+**Setlist Viewer** (`src/app/setlist/page.tsx`):
+- URL format: `/setlist?id={setlistId}&song={songIndex}`
+- Loads complete setlist from localStorage (no API calls)
+- Song navigation: Previous/Next buttons and keyboard shortcuts
+- Keyboard shortcuts: ← or H (previous), → or L (next), S (toggle song list)
+- Displays current position (e.g., "3 / 10")
+- Shows song list dropdown for quick jumping
+- Integrates full TabDisplay with all features (transpose, autoscroll, etc.)
+- URL updates as user navigates between songs
+
+**Adding Songs to Setlists**:
+- From `TabDisplay.tsx`: Passes complete `tab` object to `addSongToSetlist()`
+- From `SearchResults.tsx`: Only passes metadata (no cached data yet)
+- Full tab data stored in `SetlistSong.tabData` field
+- Songs without cached data shown as disabled in SetlistManager
+
+**Data Format**:
+```typescript
+SetlistSong {
+  tab_url: string          // e.g., "/tab/artist/song/123456"
+  artist_name: string
+  song_name: string
+  type: string            // "Chords", "Tab", etc.
+  rating: number
+  tabData?: SongDetail    // Complete cached tab data
+}
+
+Setlist {
+  id: string              // e.g., "setlist_1234567890_abc123"
+  name: string            // User-provided name
+  created: string         // ISO timestamp
+  order?: number          // Sort order (optional for backward compatibility)
+  songs: SetlistSong[]    // Array of songs with cached data
+}
+```
+
+**Export Format** (`.setlist` ZIP file):
+- `metadata.json`: Setlist metadata (id, name, created, version, songCount)
+- `songs/song-1.json`, `songs/song-2.json`, etc.: Individual SetlistSong objects with full tabData
+
+**Backward Compatibility**:
+- `loadSetlists()` automatically adds `order` field to old setlists using created timestamp
+- Migration happens transparently on first load after update
+- `order` field is optional in TypeScript types
+
 ## ChordPro Format Support
 
 The app supports conversion to/from ChordPro format (https://songbook-pro.com/docs/manual/chordpro/):
@@ -238,6 +318,7 @@ If Ultimate Guitar changes their HTML structure:
 **Critical Dependencies**:
 - `cheerio`: Server-side HTML parsing (like jQuery for Node.js)
 - `axios`: HTTP client with better error handling than fetch
+- `jszip`: ZIP file creation for setlist export/import
 - `tailwindcss` + `daisyui`: Utility-first CSS framework with component library (note: custom CSS in globals.css for chord styling)
 - `next-pwa`: Progressive Web App support with service worker generation (note: peer dependency warnings for webpack/@babel/core are expected and can be ignored as Next.js provides these internally)
 
