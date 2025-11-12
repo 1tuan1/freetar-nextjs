@@ -9,6 +9,12 @@ An open-source alternative frontend to Ultimate Guitar, built with Next.js.
 - 📜 **Auto-scroll** for hands-free reading while playing
 - 🎵 **Transpose chords** to any key (-11 to +11 semitones)
 - ⭐ **Save favorites locally** (no account needed)
+- 🎼 **Setlists** - Create and organize song collections for practice sessions or performances
+  - Store complete tabs offline in localStorage
+  - Easy song navigation with Previous/Next buttons
+  - Keyboard shortcuts (← / H, → / L, S) for quick switching
+  - Reorder songs and setlists with drag-and-drop UI
+  - Export/import setlists as `.setlist` files
 - 🌓 **Dark mode** support with system preference detection
 - 🖨️ **Print-friendly** formatting
 - 🎯 **Chord diagrams** with fingering positions
@@ -65,17 +71,21 @@ freetar-nextjs/
 │   │   │   └── tab/           # Tab data API endpoint
 │   │   ├── search/            # Search results page
 │   │   ├── tab/               # Tab display page
+│   │   ├── setlist/           # Setlist viewer page
 │   │   ├── about/             # About page
 │   │   ├── layout.tsx         # Root layout
-│   │   ├── page.tsx           # Home page (favorites)
+│   │   ├── page.tsx           # Home page (setlists & favorites)
 │   │   └── globals.css        # Global styles
 │   ├── components/            # React components
 │   │   ├── Navbar.tsx         # Navigation bar with search
 │   │   ├── SearchResults.tsx  # Search results table
 │   │   ├── TabDisplay.tsx     # Tab display with controls
-│   │   └── ChordDiagram.tsx   # Chord fingering visualization
+│   │   ├── ChordDiagram.tsx   # Chord fingering visualization
+│   │   └── SetlistManager.tsx # Setlist management component
 │   ├── lib/                   # Utility libraries
-│   │   └── ug.ts              # Ultimate Guitar scraping logic
+│   │   ├── ug.ts              # Ultimate Guitar scraping logic
+│   │   ├── chordpro.ts        # ChordPro format conversion
+│   │   └── setlist.ts         # Setlist management functions
 │   └── types/                 # TypeScript type definitions
 │       └── index.ts           # Shared types
 ├── public/                    # Static assets
@@ -113,6 +123,39 @@ See [CHORDPRO.md](CHORDPRO.md) for detailed ChordPro documentation.
 - View all favorites on the home page
 - Export favorites to JSON file for backup
 - Import favorites from JSON file
+
+### Managing Setlists
+
+**Creating Setlists:**
+1. On the home page, enter a name and click "Create Setlist"
+2. Add songs to setlists from search results or tab pages using the dropdown menu
+3. Complete tab data is automatically cached for offline viewing
+
+**Viewing Setlists:**
+1. Click on a setlist name or the ▶ (Play) button to open the setlist viewer
+2. Navigate between songs with:
+   - **Previous/Next buttons** in the UI
+   - **Keyboard shortcuts:**
+     - `←` or `H` - Previous song
+     - `→` or `L` - Next song
+     - `S` - Toggle song list
+3. Current position shown as "3 / 10" badge
+
+**Organizing Setlists:**
+- Reorder songs within a setlist using ▲/▼ buttons
+- Reorder setlists themselves using ▲/▼ buttons
+- Rename setlists with the ✏ (Edit) button
+- Delete setlists with the 🗑 (Trash) button
+
+**Export/Import:**
+- Export setlists as `.setlist` files (includes cached tab data)
+- Import setlists from `.setlist` files
+- Share setlists with other Freetar users
+
+**Offline Access:**
+- All setlist data stored in browser localStorage
+- No internet required to view setlist songs
+- Perfect for performances without reliable connectivity
 
 ### Dark Mode
 
@@ -158,10 +201,11 @@ vercel
 ## Privacy
 
 Freetar respects your privacy:
-- All favorites are stored locally in your browser (localStorage)
+- All favorites and setlists are stored locally in your browser (localStorage)
 - No user data is collected or sent to any server
 - Searches and tab requests are proxied through the Next.js API routes
 - No analytics or tracking
+- Setlist data stays on your device unless you explicitly export it
 
 ## Credits
 

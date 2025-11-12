@@ -41,3 +41,24 @@ export class FreetarError extends Error {
     this.name = 'FreetarError';
   }
 }
+
+export interface SetlistSong {
+  tab_url: string;
+  artist_name: string;
+  song_name: string;
+  type: string;
+  rating: number;
+  tabData?: SongDetail; // Full tab data cached for offline viewing
+}
+
+export interface Setlist {
+  id: string;
+  name: string;
+  created: string;
+  order?: number;
+  songs: SetlistSong[];
+}
+
+export interface SetlistCollection {
+  [setlistId: string]: Setlist;
+}

@@ -64,9 +64,19 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                let isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const theme = JSON.parse(localStorage.getItem("dark_mode")) || isDarkMode ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', theme);
+                try {
+                  const stored = localStorage.getItem("dark_mode");
+                  let theme;
+                  if (stored !== null) {
+                    theme = JSON.parse(stored) ? 'dark' : 'light';
+                  } else {
+                    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    theme = isDarkMode ? 'dark' : 'light';
+                  }
+                  document.documentElement.setAttribute('data-theme', theme);
+                } catch (e) {
+                  console.error('Error setting theme:', e);
+                }
               })();
             `,
           }}
