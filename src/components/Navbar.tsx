@@ -39,12 +39,21 @@ export default function Navbar() {
     return (
         <div className="navbar bg-base-200 shadow-lg no-print">
             <div className="navbar-start">
-                <Link href="/" className="btn btn-ghost text-xl font-bold">
-                    <FaGuitar className="text-2xl" /> Freetar NextJS
+                <Link
+                    href="/"
+                    className="btn btn-ghost text-xl font-bold hidden md:inline-flex"
+                >
+                    <FaGuitar className="text-2xl" /> Worship Setlist
+                </Link>
+                <Link
+                    href="/"
+                    className="btn btn-ghost text-xl font-bold md:hidden"
+                >
+                    <FaGuitar className="text-2xl" />
                 </Link>
             </div>
 
-            <div className="navbar-center flex-1 px-4">
+            <div className="navbar-center md:flex-1 px-4">
                 <form onSubmit={handleSearch} className="w-full max-w-xl">
                     <div className="join w-full">
                         <input
@@ -67,7 +76,7 @@ export default function Navbar() {
                 </form>
             </div>
 
-            <div className="navbar-end gap-2">
+            <div className="navbar-end gap-2 hidden md:inline-flex">
                 <Link href="/about" className="btn btn-ghost">
                     About
                 </Link>
