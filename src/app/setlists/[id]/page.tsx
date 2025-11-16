@@ -7,6 +7,7 @@ import Link from "next/link";
 import {
 	getSetlist,
 	removeFromSetlist,
+	reorderSetlistItems,
 	enableSharing,
 	disableSharing,
 	type SetlistWithItems,
@@ -20,7 +21,103 @@ import {
 	FaEye,
 	FaCopy,
 	FaXmark,
+	FaGripVertical,
 } from "react-icons/fa6";
+import {
+	DndContext,
+	closestCenter,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+	DragEndEvent,
+} from "@dnd-kit/core";
+import {
+	arrayMove,
+	SortableContext,
+	sortableKeyboardCoordinates,
+	verticalListSortingStrategy,
+	useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { toast } from "react-toastify";
+import { confirmAlert } from "react-confirm-alert";
+
+// Sortable table row component
+interface SortableRowProps {
+	id: string;
+	index: number;
+	item: SetlistWithItems["items"][0];
+	onRemove: (itemId: string) => void;
+}
+
+function SortableRow({ id, index, item, onRemove }: SortableRowProps) {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({ id });
+
+	const style = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+		opacity: isDragging ? 0.5 : 1,
+	};
+
+	return (
+		<tr ref={setNodeRef} style={style}>
+			<td>
+				<div className="flex items-center gap-2">
+					<button
+						className="cursor-grab active:cursor-grabbing text-base-content/40 hover:text-base-content"
+						{...attributes}
+						{...listeners}
+					>
+						<FaGripVertical />
+					</button>
+					<span>{index + 1}</span>
+				</div>
+			</td>
+			<td>
+				<Link
+					href={`/tab?id=${item.tab_id}`}
+					className="link link-hover font-semibold"
+				>
+					{item.tab.song_name}
+				</Link>
+				{item.notes && (
+					<div className="text-xs text-base-content/60 mt-1">
+						{item.notes}
+					</div>
+				)}
+			</td>
+			<td>{item.tab.artist_name}</td>
+			<td>
+				<span className="badge badge-ghost badge-sm">
+					{item.tab.type}
+				</span>
+			</td>
+			<td>
+				<div className="flex items-center gap-1">
+					<FaStar className="text-yellow-500 text-sm" />
+					<span className="text-sm">{item.tab.rating}/5</span>
+				</div>
+			</td>
+			<td>
+				<button
+					onClick={() => onRemove(item.id)}
+					className="btn btn-ghost btn-sm text-error"
+					title="Remove from setlist"
+				>
+					<FaTrash />
+				</button>
+			</td>
+		</tr>
+	);
+}
 
 export default function SetlistDetailPage() {
 	const { user, loading: authLoading } = useAuth();
@@ -32,6 +129,14 @@ export default function SetlistDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [sharingLoading, setSharingLoading] = useState(false);
 	const [copiedLink, setCopiedLink] = useState(false);
+
+	// Drag and drop sensors
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
 
 	const loadSetlist = useCallback(async () => {
 		setLoading(true);
@@ -49,17 +154,31 @@ export default function SetlistDetailPage() {
 	}, [user, authLoading, setlistId, router, loadSetlist]);
 
 	const handleRemoveItem = async (itemId: string) => {
-		if (!confirm("Remove this tab from the setlist?")) return;
-
-		const { error } = await removeFromSetlist(itemId);
-		if (!error && setlist) {
-			setSetlist({
-				...setlist,
-				items: setlist.items.filter((item) => item.id !== itemId),
-			});
-		} else {
-			alert("Failed to remove tab");
-		}
+		confirmAlert({
+			title: "Remove Tab",
+			message: "Remove this tab from the setlist?",
+			buttons: [
+				{
+					label: "Yes, Remove",
+					onClick: async () => {
+						const { error } = await removeFromSetlist(itemId);
+						if (!error && setlist) {
+							setSetlist({
+								...setlist,
+								items: setlist.items.filter((item) => item.id !== itemId),
+							});
+							toast.success("Tab removed from setlist");
+						} else {
+							toast.error("Failed to remove tab");
+						}
+					},
+				},
+				{
+					label: "Cancel",
+					onClick: () => {},
+				},
+			],
+		});
 	};
 
 	const handleEnableSharing = async () => {
@@ -67,24 +186,38 @@ export default function SetlistDetailPage() {
 		const { token, error } = await enableSharing(setlistId);
 		if (!error && token && setlist) {
 			setSetlist({ ...setlist, share_token: token });
+			toast.success("Sharing enabled!");
 		} else {
-			alert("Failed to enable sharing");
+			toast.error("Failed to enable sharing");
 		}
 		setSharingLoading(false);
 	};
 
 	const handleDisableSharing = async () => {
-		if (!confirm("Disable sharing? The current link will stop working."))
-			return;
-
-		setSharingLoading(true);
-		const { error } = await disableSharing(setlistId);
-		if (!error && setlist) {
-			setSetlist({ ...setlist, share_token: null });
-		} else {
-			alert("Failed to disable sharing");
-		}
-		setSharingLoading(false);
+		confirmAlert({
+			title: "Disable Sharing",
+			message: "Disable sharing? The current link will stop working.",
+			buttons: [
+				{
+					label: "Yes, Disable",
+					onClick: async () => {
+						setSharingLoading(true);
+						const { error } = await disableSharing(setlistId);
+						if (!error && setlist) {
+							setSetlist({ ...setlist, share_token: null });
+							toast.success("Sharing disabled");
+						} else {
+							toast.error("Failed to disable sharing");
+						}
+						setSharingLoading(false);
+					},
+				},
+				{
+					label: "Cancel",
+					onClick: () => {},
+				},
+			],
+		});
 	};
 
 	const handleCopyLink = async () => {
@@ -100,9 +233,37 @@ export default function SetlistDetailPage() {
 			await navigator.clipboard.writeText(shareUrl);
 			setCopiedLink(true);
 			setTimeout(() => setCopiedLink(false), 2000);
+			toast.success("Link copied to clipboard!");
 		} catch (error) {
 			console.error("Failed to copy link:", error);
-			alert("Failed to copy link");
+			toast.error("Failed to copy link");
+		}
+	};
+
+	const handleDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+
+		if (!over || active.id === over.id || !setlist) return;
+
+		const oldIndex = setlist.items.findIndex(
+			(item) => item.id === active.id,
+		);
+		const newIndex = setlist.items.findIndex((item) => item.id === over.id);
+
+		// Update local state immediately for responsive UI
+		const newItems = arrayMove(setlist.items, oldIndex, newIndex);
+		setSetlist({ ...setlist, items: newItems });
+
+		// Save to database
+		const itemIds = newItems.map((item) => item.id);
+		const { error } = await reorderSetlistItems(setlistId, itemIds);
+
+		if (error) {
+			toast.error("Failed to save new order");
+			// Reload to get the correct order from database
+			loadSetlist();
+		} else {
+			toast.success("Order saved!");
 		}
 	};
 
@@ -243,63 +404,40 @@ export default function SetlistDetailPage() {
 				<div className="card bg-base-100 shadow-lg">
 					<div className="card-body">
 						<div className="overflow-x-auto">
-							<table className="table table-zebra">
-								<thead>
-									<tr>
-										<th className="w-12">#</th>
-										<th>Song</th>
-										<th>Artist</th>
-										<th>Type</th>
-										<th>Rating</th>
-										<th>Actions</th>
-									</tr>
-								</thead>
-								<tbody>
-									{setlist.items.map((item, index) => (
-										<tr key={item.id}>
-											<td>{index + 1}</td>
-											<td>
-												<Link
-													href={`/tab?id=${item.tab_id}`}
-													className="link link-hover font-semibold"
-												>
-													{item.tab.song_name}
-												</Link>
-												{item.notes && (
-													<div className="text-xs text-base-content/60 mt-1">
-														{item.notes}
-													</div>
-												)}
-											</td>
-											<td>{item.tab.artist_name}</td>
-											<td>
-												<span className="badge badge-ghost badge-sm">
-													{item.tab.type}
-												</span>
-											</td>
-											<td>
-												<div className="flex items-center gap-1">
-													<FaStar className="text-yellow-500 text-sm" />
-													<span className="text-sm">
-														{item.tab.rating}/5
-													</span>
-												</div>
-											</td>
-											<td>
-												<button
-													onClick={() =>
-														handleRemoveItem(item.id)
-													}
-													className="btn btn-ghost btn-sm text-error"
-													title="Remove from setlist"
-												>
-													<FaTrash />
-												</button>
-											</td>
+							<DndContext
+								sensors={sensors}
+								collisionDetection={closestCenter}
+								onDragEnd={handleDragEnd}
+							>
+								<table className="table table-zebra">
+									<thead>
+										<tr>
+											<th className="w-12">#</th>
+											<th>Song</th>
+											<th>Artist</th>
+											<th>Type</th>
+											<th>Rating</th>
+											<th>Actions</th>
 										</tr>
-									))}
-								</tbody>
-							</table>
+									</thead>
+									<SortableContext
+										items={setlist.items.map((item) => item.id)}
+										strategy={verticalListSortingStrategy}
+									>
+										<tbody>
+											{setlist.items.map((item, index) => (
+												<SortableRow
+													key={item.id}
+													id={item.id}
+													index={index}
+													item={item}
+													onRemove={handleRemoveItem}
+												/>
+											))}
+										</tbody>
+									</SortableContext>
+								</table>
+							</DndContext>
 						</div>
 					</div>
 				</div>

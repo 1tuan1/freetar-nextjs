@@ -255,19 +255,21 @@ export async function reorderSetlistItems(
 ): Promise<{ error: Error | null }> {
 	if (!supabase) return { error: new Error("Supabase not configured") };
 
-	// Update each item's position
-	const updates = itemIds.map((id, index) => ({
-		id,
-		setlist_id: setlistId,
-		position: index,
-	}));
+	// Update each item's position individually
+	for (let i = 0; i < itemIds.length; i++) {
+		const { error } = await supabase
+			.from("setlist_items")
+			// @ts-ignore - Supabase type inference issue
+			.update({ position: i })
+			.eq("id", itemIds[i])
+			.eq("setlist_id", setlistId);
 
-	const { error } = await supabase
-		.from("setlist_items")
-		// @ts-ignore - Supabase type inference issue
-		.upsert(updates);
+		if (error) {
+			return { error };
+		}
+	}
 
-	return { error };
+	return { error: null };
 }
 
 // Update setlist item notes

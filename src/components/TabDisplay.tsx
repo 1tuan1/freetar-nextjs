@@ -26,6 +26,7 @@ import {
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSetlists, addToSetlist, type Setlist } from "@/lib/setlists";
+import { toast } from "react-toastify";
 
 interface TabDisplayProps {
 	tab: SongDetail;
@@ -81,7 +82,7 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 
 	const handleOpenSetlistModal = async () => {
 		if (!user) {
-			alert("Please sign in to use setlists");
+			toast.warning("Please sign in to use setlists");
 			return;
 		}
 
@@ -102,9 +103,9 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 		);
 
 		if (error) {
-			alert("Failed to add to setlist. It may already be in this setlist.");
+			toast.error("Failed to add to setlist. It may already be in this setlist.");
 		} else {
-			alert("Added to setlist with current transpose/capo settings!");
+			toast.success("Added to setlist with current transpose/capo settings!");
 			setShowSetlistModal(false);
 		}
 	};
@@ -227,10 +228,10 @@ export default function TabDisplay({ tab }: TabDisplayProps) {
 		const chordProText = convertToChordPro(tab, effectiveTranspose);
 		try {
 			await navigator.clipboard.writeText(chordProText);
-			alert("ChordPro format copied to clipboard!");
+			toast.success("ChordPro format copied to clipboard!");
 		} catch (err) {
 			console.error("Failed to copy:", err);
-			alert("Failed to copy to clipboard");
+			toast.error("Failed to copy to clipboard");
 		}
 	};
 

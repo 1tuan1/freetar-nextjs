@@ -11,6 +11,8 @@ import {
 	type Setlist,
 } from "@/lib/setlists";
 import { FaPlus, FaTrash, FaMusic, FaArrowLeft } from "react-icons/fa6";
+import { toast } from "react-toastify";
+import { confirmAlert } from "react-confirm-alert";
 
 export default function SetlistsPage() {
 	const { user, loading: authLoading } = useAuth();
@@ -51,25 +53,37 @@ export default function SetlistsPage() {
 			setShowCreateModal(false);
 			setNewSetlistName("");
 			setNewSetlistDescription("");
+			toast.success("Setlist created successfully!");
 		} else {
-			alert("Failed to create setlist");
+			toast.error("Failed to create setlist");
 		}
 
 		setCreating(false);
 	};
 
 	const handleDeleteSetlist = async (setlistId: string) => {
-		if (
-			!confirm("Are you sure you want to delete this setlist?")
-		)
-			return;
-
-		const { error } = await deleteSetlist(setlistId);
-		if (!error) {
-			setSetlists(setlists.filter((s) => s.id !== setlistId));
-		} else {
-			alert("Failed to delete setlist");
-		}
+		confirmAlert({
+			title: "Delete Setlist",
+			message: "Are you sure you want to delete this setlist?",
+			buttons: [
+				{
+					label: "Yes, Delete",
+					onClick: async () => {
+						const { error } = await deleteSetlist(setlistId);
+						if (!error) {
+							setSetlists(setlists.filter((s) => s.id !== setlistId));
+							toast.success("Setlist deleted");
+						} else {
+							toast.error("Failed to delete setlist");
+						}
+					},
+				},
+				{
+					label: "Cancel",
+					onClick: () => {},
+				},
+			],
+		});
 	};
 
 	if (authLoading || (loading && !user)) {
